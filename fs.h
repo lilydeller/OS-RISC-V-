@@ -3,7 +3,6 @@
 
 void fs_init(void);
 void fs_list(void);
-const char *fs_read(const char *name);
-int  fs_create(const char *name, const char *contents);
+void fs_cat(const char *filename);
 
 #endif

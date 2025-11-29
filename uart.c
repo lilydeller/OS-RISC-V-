@@ -16,21 +16,18 @@ static inline void mmio_write8(uintptr_t addr, uint8_t val) {
 }
 
 void uart_init(void) {
-    /* For this toy OS, rely on QEMU’s default UART setup.
-       You can add full ns16550 init later if you want. */
+    // Using QEMU’s default UART config (no setup needed)
 }
 
 void uart_putc(char c) {
-    /* Wait for transmitter holding register empty (bit 5) */
-    while ((mmio_read8(UART_BASE + UART_LSR) & (1 << 5)) == 0)
-        ;
+    // Wait for transmitter to be ready (bit 5)
+    while ((mmio_read8(UART_BASE + UART_LSR) & (1 << 5)) == 0);
     mmio_write8(UART_BASE + UART_THR, (uint8_t)c);
 }
 
 char uart_getc(void) {
-    /* Wait for data ready (bit 0) */
-    while ((mmio_read8(UART_BASE + UART_LSR) & (1 << 0)) == 0)
-        ;
+    // Wait for data ready (bit 0)
+    while ((mmio_read8(UART_BASE + UART_LSR) & (1 << 0)) == 0);
     return (char)mmio_read8(UART_BASE + UART_RBR);
 }
 
@@ -42,19 +39,17 @@ void uart_puts(const char *s) {
     }
 }
 
-/* Very small hex printer */
 void uart_put_hex(uint64_t v) {
     static const char *digits = "0123456789abcdef";
     uart_puts("0x");
-    for (int i = 60; i >= 0; i -= 4) {
+    for (int i = 60; i >= 0; i -= 4)
         uart_putc(digits[(v >> i) & 0xF]);
-    }
 }
 
-/* Very small decimal printer */
 void uart_put_dec(int v) {
     char buf[20];
     int i = 0;
+
     if (v == 0) {
         uart_putc('0');
         return;
@@ -67,7 +62,6 @@ void uart_put_dec(int v) {
         buf[i++] = '0' + (v % 10);
         v /= 10;
     }
-    while (i--) {
+    while (i--)
         uart_putc(buf[i]);
-    }
 }

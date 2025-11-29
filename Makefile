@@ -1,18 +1,19 @@
-CROSS_COMPILE ?= riscv64-unknown-elf-
-CC      = $(CROSS_COMPILE)gcc
+CROSS   ?= riscv64-unknown-elf-
+CC      := $(CROSS)gcc
+LD      := $(CROSS)ld
+OBJCOPY := $(CROSS)objcopy
 
-# Note the addition of -mcmodel=medany — this fixes the relocation issue
-CFLAGS  = -march=rv64imac -mabi=lp64 -nostdlib -nostartfiles \
-          -ffreestanding -Wall -Wextra -O2 -mcmodel=medany
+CFLAGS  := -march=rv64imac -mabi=lp64 -nostdlib -nostartfiles -ffreestanding -Wall -Wextra -O2 -mcmodel=medany
+LDFLAGS := -T linker.ld
 
-SRCS = start.S main.c uart.c
+SRCS = start.S main.c uart.c fs.c tasks.c shell.c
 OBJS = $(SRCS:.c=.o)
 OBJS := $(OBJS:.S=.o)
 
 all: kernel.elf
 
-kernel.elf: $(OBJS) linker.ld
-	$(CC) $(CFLAGS) -T linker.ld -o $@ $(OBJS)
+kernel.elf: $(OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -23,5 +24,5 @@ kernel.elf: $(OBJS) linker.ld
 clean:
 	rm -f *.o kernel.elf
 
-run: all
+run: kernel.elf
 	qemu-system-riscv64 -machine virt -nographic -bios none -kernel kernel.elf

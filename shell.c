@@ -1,91 +1,82 @@
-#include "shell.h"
 #include "uart.h"
-#include "tasks.h"
 #include "fs.h"
+#include "tasks.h"
 
-#define LINE_MAX 64
+#define CMD_BUF_SIZE 64
 
+// tiny local string helpers
 static int str_eq(const char *a, const char *b) {
     while (*a && *b) {
         if (*a != *b) return 0;
-        a++; b++;
+        a++;
+        b++;
     }
-    return *a == *b;
+    return (*a == '\0' && *b == '\0');
 }
 
-static void read_line(char *buf, int max) {
-    int i = 0;
-    while (1) {
-        char c = uart_getc();
-        if (c == '\r' || c == '\n') {
-            uart_puts("\r\n");
-            break;
-        } else if (c == '\b' || c == 127) {
-            if (i > 0) {
-                i--;
-                uart_puts("\b \b");
-            }
-        } else if (i < max - 1) {
-            buf[i++] = c;
-            uart_putc(c);
-        }
+static int starts_with(const char *s, const char *prefix) {
+    while (*prefix) {
+        if (*s != *prefix) return 0;
+        s++;
+        prefix++;
     }
-    buf[i] = '\0';
+    return 1;
+}
+
+static int str_len(const char *s) {
+    int n = 0;
+    while (*s++) n++;
+    return n;
 }
 
 static void shell_help(void) {
-    uart_puts("Commands:\n");
-    uart_puts("  help       - show this message\n");
-    uart_puts("  ps         - list tasks\n");
-    uart_puts("  tick       - run one scheduler round\n");
-    uart_puts("  run N      - run N scheduler rounds\n");
-    uart_puts("  ls         - list files\n");
-    uart_puts("  cat NAME   - print file contents\n");
-    uart_puts("  echo TEXT  - print TEXT\n");
+    uart_puts("Available commands:\n");
+    uart_puts("  help         - Show this help message\n");
+    uart_puts("  ls           - List files\n");
+    uart_puts("  cat <file>   - Display file contents\n");
+    uart_puts("  tasks        - List available tasks\n");
+    uart_puts("  run <task>   - Run a demo task\n");
 }
 
 void shell_run(void) {
-    char line[LINE_MAX];
+    char cmd[CMD_BUF_SIZE];
 
+    uart_puts("> ");
     while (1) {
-        uart_puts("> ");
-        read_line(line, LINE_MAX);
+        int i = 0;
 
-        if (line[0] == '\0') {
-            continue;
-        } else if (str_eq(line, "help")) {
-            shell_help();
-        } else if (str_eq(line, "ps")) {
-            tasks_list();
-        } else if (str_eq(line, "tick")) {
-            tasks_run_once();
-        } else if (line[0] == 'r' && line[1] == 'u' && line[2] == 'n' && line[3] == ' ') {
-            /* run N rounds */
-            int n = 0;
-            const char *p = line + 4;
-            while (*p >= '0' && *p <= '9') {
-                n = n * 10 + (*p - '0');
-                p++;
-            }
-            if (n <= 0) n = 1;
-            for (int i = 0; i < n; i++) {
-                tasks_run_once();
-            }
-        } else if (str_eq(line, "ls")) {
-            fs_list();
-        } else if (line[0] == 'c' && line[1] == 'a' && line[2] == 't' && line[3] == ' ') {
-            const char *name = line + 4;
-            const char *data = fs_read(name);
-            if (data) {
-                uart_puts(data);
+        // read a line into cmd[]
+        while (i < CMD_BUF_SIZE - 1) {
+            char c = uart_getc();
+            if (c == '\r' || c == '\n') {
+                uart_putc('\n');
+                cmd[i] = '\0';
+                break;
+            } else if ((c == '\b' || c == 127) && i > 0) {
+                i--;
+                uart_puts("\b \b");
             } else {
-                uart_puts("No such file.\n");
+                uart_putc(c);
+                cmd[i++] = c;
             }
-        } else if (line[0] == 'e' && line[1] == 'c' && line[2] == 'h' && line[3] == 'o' && line[4] == ' ') {
-            uart_puts(line + 5);
-            uart_puts("\n");
-        } else {
+        }
+        cmd[i] = '\0';
+
+        // handle commands
+        if (str_eq(cmd, "help")) {
+            shell_help();
+        } else if (str_eq(cmd, "ls")) {
+            fs_list();
+        } else if (starts_with(cmd, "cat ")) {
+            fs_cat(cmd + 4);
+        } else if (str_eq(cmd, "tasks")) {
+            tasks_list();
+        } else if (starts_with(cmd, "run ")) {
+            tasks_run(cmd + 4);
+        } else if (str_len(cmd) > 0) {
             uart_puts("Unknown command. Type 'help'.\n");
         }
+
+        uart_puts("> ");
     }
 }

@@ -3,21 +3,22 @@
 
 #include <stdint.h>
 
+#define MAX_TASKS 8
+
 typedef void (*task_step_fn)(void);
 
 typedef struct {
-    const char   *name;
+    int id;                    // Added to match tasks.c
+    const char *name;
     task_step_fn step;
-    int          active;
-    int          id;
+    int active;
+    int counter;
 } task_t;
 
-#define MAX_TASKS  8
-
 void tasks_init(void);
-int  tasks_add(const char *name, task_step_fn step);
-void tasks_run_once(void);       /* run one round of all active tasks */
 void tasks_list(void);
+void tasks_run(const char *name);
+int  tasks_add(const char *name, task_step_fn step);  // return type matches tasks.c
 void tasks_register_demo_programs(void);
 
 #endif
