@@ -6,7 +6,7 @@ OBJCOPY := $(CROSS)objcopy
 CFLAGS  := -march=rv64imac -mabi=lp64 -nostdlib -nostartfiles -ffreestanding -Wall -Wextra -O2 -mcmodel=medany
 LDFLAGS := -T linker.ld
 
-SRCS = start.S main.c uart.c fs.c tasks.c shell.c
+SRCS = start.S main.c uart.c fs.c tasks.c shell.c 
 OBJS = $(SRCS:.c=.o)
 OBJS := $(OBJS:.S=.o)
 

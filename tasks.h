@@ -8,7 +8,7 @@
 typedef void (*task_step_fn)(void);
 
 typedef struct {
-    int id;                    // Added to match tasks.c
+    int id;                   
     const char *name;
     task_step_fn step;
     int active;
