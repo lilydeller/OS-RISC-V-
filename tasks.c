@@ -1,6 +1,21 @@
 #include "uart.h"
 #include "tasks.h"
 
+//   - tasks_init()
+//       initializes the global task array and resets task count.
+
+//   - tasks_add()
+//       registers a new task by name and function pointer.
+
+//   - tasks_list()
+//       lists all available tasks via UART output.
+
+//   - tasks_run(name)
+//       searches for a task by name and executes its function.
+
+//   - tasks_register_demo_programs()
+//       registers two built-in demonstration tasks.
+
 static task_t tasks[MAX_TASKS];
 static int task_count = 0;
 
@@ -73,6 +88,28 @@ void tasks_run(const char *name) {
         }
     }
     uart_puts("No such task.\n");
+}
+
+static void task_dynamic_hello(void) {
+    uart_puts("[dynamic] Hello from a dynamically created program!\n");
+}
+
+
+// helper used by the shell to create a new program at runtime simply
+// adds a task entry that runs task_dynamic_hello() under the given name
+// example usage from shell:
+//    mkprog hello
+//    run hello
+
+void tasks_create_dynamic_program(const char *name) {
+    int id = tasks_add(name, task_dynamic_hello);
+    if (id < 0) {
+        uart_puts("Failed to create program (task table full).\n");
+    } else {
+        uart_puts("Created program: ");
+        uart_puts(name);
+        uart_puts("\n");
+    }
 }
 
 void tasks_register_demo_programs(void) {
