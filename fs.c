@@ -1,10 +1,30 @@
+
+// fs.c — simple in-memory filesystem for RISC-V OS 
+// this module implements a minimal filesystem that stores a few "files"
+// directly in memory. it allows the shell to use commands like `ls` and `cat`
+// without needing disk access or a real storage driver.
+//
+// supported operations:
+//   - fs_init(): initialize and announce the filesystem
+//   - fs_list(): list available files
+//   - fs_cat(filename): display file contents
+//
+// the filesystem is completely static and read-only. all file data is stored
+// in an in-memory array defined below.
+
 #include "uart.h"
 #include "fs.h"
+
+// each file has a name and content stored as constant strings.
+// here we just simulate a few files with strings in memory.
 
 typedef struct {
     const char *name;
     const char *content;
 } File;
+
+// these files exist in our simple virtual filesystem.
+// they are preloaded at compile time and cannot be modified or deleted.
 
 static File files[] = {
     { "README.md", "This is the RISC-V OS demo filesystem.\n" },
@@ -14,7 +34,11 @@ static File files[] = {
 
 #define FILE_COUNT ((int)(sizeof(files) / sizeof(files[0])))
 
-// simple local string comparison helper
+// this function compares two null-terminated strings (C strings).
+// returns 1 if they are equal: 0 otherwise.
+// we implement this ourselves since the OS does not have access
+// to the C standard library (e.g., strcmp from <string.h>)
+
 static int str_eq(const char *a, const char *b) {
     while (*a && *b) {
         if (*a != *b) return 0;
@@ -28,6 +52,9 @@ void fs_init(void) {
     uart_puts("[FS] initialized with demo files.\n");
 }
 
+// prints a simple directory listing to the UART console.
+// each file is shown on its own line.
+
 void fs_list(void) {
     uart_puts("Files:\n");
     for (int i = 0; i < FILE_COUNT; i++) {
@@ -36,6 +63,14 @@ void fs_list(void) {
         uart_puts("\n");
     }
 }
+
+// given a filename, search through the files array.
+// if found → print the file's contents.
+// if not found → print an error message.
+//
+// example:
+//   > cat hello.txt
+//   hello from your in-memory filesystem!
 
 void fs_cat(const char *filename) {
     for (int i = 0; i < FILE_COUNT; i++) {
