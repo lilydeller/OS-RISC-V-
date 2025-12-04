@@ -16,17 +16,17 @@ static inline void mmio_write8(uintptr_t addr, uint8_t val) {
 }
 
 void uart_init(void) {
-    // Using QEMU’s default UART config (no setup needed)
+    // using QEMU’s default UART config (no setup needed)
 }
 
 void uart_putc(char c) {
-    // Wait for transmitter to be ready (bit 5)
+    // wait for transmitter to be ready (bit 5)
     while ((mmio_read8(UART_BASE + UART_LSR) & (1 << 5)) == 0);
     mmio_write8(UART_BASE + UART_THR, (uint8_t)c);
 }
 
 char uart_getc(void) {
-    // Wait for data ready (bit 0)
+    // wait for data ready (bit 0)
     while ((mmio_read8(UART_BASE + UART_LSR) & (1 << 0)) == 0);
     return (char)mmio_read8(UART_BASE + UART_RBR);
 }

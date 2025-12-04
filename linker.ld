@@ -1,29 +1,37 @@
-* this file tells the linker (ld) exactly how to place the compiled sections
-* of program (code, data, etc.) into memory. it defines:
-* the memory map for the RISC-V “virt” machine in QEMU
-* where execution begins (the entry point)
-* how sections like .text, .data, and .bss are laid out in RAM
-
-* OUTPUT_ARCH specifies the target architecture: RISC-V.
-* ENTRY defines the symbol where execution starts (found in start.S)
+/* Linker script for our simple RISC-V OS running on QEMU virt */
 
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
+/* Define a single RAM region starting at 0x80000000 (QEMU virt) */
 MEMORY {
     RAM (rwx) : ORIGIN = 0x80000000, LENGTH = 128M
 }
 
 SECTIONS {
+    /* Code and read-only data go first */
     .text : {
-        *(.text.entry)
-        *(.text*)
+        *(.text.entry)     /* our _start label lives here */
+        *(.text*)          /* all other code sections */
     } > RAM
 
-    .rodata : { *(.rodata*) } > RAM
-    .data   : { *(.data*) }   > RAM
-    .bss    : { *(.bss*) *(COMMON) } > RAM
+    /* Read-only data (const variables, strings) */
+    .rodata : {
+        *(.rodata*)
+    } > RAM
 
+    /* Initialized data */
+    .data : {
+        *(.data*)
+    } > RAM
+
+    /* Zero-initialized data (BSS) */
+    .bss : {
+        *(.bss*)
+        *(COMMON)
+    } > RAM
+
+    /* Align and define a simple stack top symbol */
     . = ALIGN(16);
-    PROVIDE(stack_top = . + 0x4000);
+    PROVIDE(stack_top = . + 0x4000);  /* 16 KB stack */
 }
