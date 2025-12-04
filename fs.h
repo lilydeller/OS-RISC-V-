@@ -5,6 +5,9 @@
 
 #ifndef FS_H
 #define FS_H
+#include <stddef.h>
+#include <stdint.h>
+
 
 //   initializes the in-memory filesystem. in this simple OS, it just prints a
 //   message announcing that the filesystem has been set up.
@@ -20,5 +23,6 @@ void fs_list(void);
 //   parameters: - filename: the name of the file to display (e.g., "hello.txt")
 //   called by: - shell command "cat <filename>"
 void fs_cat(const char *filename);
+int fs_get_file(const char *name, const uint8_t **data_out, size_t *size_out);
 
 #endif

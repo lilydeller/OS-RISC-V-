@@ -1,4 +1,8 @@
-
+#include "uart.h"
+#include "fs.h"
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
 // fs.c — simple in-memory filesystem for RISC-V OS 
 // this module implements a minimal filesystem that stores a few "files"
 // directly in memory. it allows the shell to use commands like `ls` and `cat`
@@ -21,6 +25,7 @@
 typedef struct {
     const char *name;
     const char *content;
+    size_t size;
 } File;
 
 // these files exist in our simple virtual filesystem.
@@ -80,4 +85,17 @@ void fs_cat(const char *filename) {
         }
     }
     uart_puts("No such file.\n");
+}
+
+// fs_get_file: returns pointer+size for built-in files or embedded userprog. 
+//   Returns 0 on success, -1 on not found.
+int fs_get_file(const char *name, const uint8_t **data_out, size_t *size_out) {
+    for (int i = 0; i < FILE_COUNT; ++i) {
+        if (str_eq(name, files[i].name)) {
+            *data_out = files[i].content;
+            *size_out = files[i].size;
+            return 0;
+        }
+    }
+    return -1;
 }

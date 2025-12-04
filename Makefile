@@ -18,7 +18,7 @@ LDFLAGS := -T linker.ld
 
 # SRCS — list of all kernel source files
 # OBJS — automatically convert each .c and .S file to a corresponding .o file
-SRCS = start.S main.c uart.c fs.c tasks.c shell.c 
+SRCS = start.S main.c uart.c fs.c tasks.c shell.c loader.c start_user.S
 OBJS = $(SRCS:.c=.o)
 OBJS := $(OBJS:.S=.o)
 

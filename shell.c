@@ -12,6 +12,7 @@
 //   cat <file>   - Display contents of a specific file
 //   tasks        - List registered demo tasks
 //   run <task>   - Execute a named task
+//   load <file>  - Loads a seperate file
 //   whoami       - Display current user
 //   su           - Switch to superuser (password: riscv)
 //   clear        - Clear the screen
@@ -28,6 +29,8 @@
 #include "uart.h"
 #include "fs.h"
 #include "tasks.h"
+#include "shell.h"
+#include "loader.h"
 
 #define CMD_BUF_SIZE 64
 
@@ -105,6 +108,48 @@ static void shell_su(void) {
     }
 }
 
+static void cmd_quit(void) {
+    uart_puts("Exiting shell + halting CPU. Use host to kill QEMU if needed.\n");
+    for (;;) { asm volatile("wfi"); }
+}
+
+// try and load program from file system and get a pcb, return 0 if fail
+static int try_run_file(const char *name) {
+    if (!name || name[0] == '\0') return -1;
+
+    uart_puts("Attempting to load file: ");
+    uart_puts(name);
+    uart_puts("\n");
+
+    pcb_t pcb;
+    int r = load_program_from_fs(name, &pcb);
+    if (r != 0) {
+        uart_puts("loader: failed to load file or not an ELF.\n");
+        return -1;
+    }
+
+    if (tasks_add_pcb(&pcb) < 0) {
+        uart_puts("tasks: out of slots\n");
+        return -1;
+    }
+
+    tasks_start_program(&pcb);
+    return 0;
+}
+
+static void cmd_load(const char *arg) {
+    if (!arg || arg[0] == '\0') {
+        uart_puts("usage: load <file>\n");
+        return;
+    }
+
+    while (*arg == ' ' || *arg == '\t') arg++;
+
+    if (try_run_file(arg) != 0) {
+        uart_puts("load failed: no such ELF or loader error.\n");
+    }
+}
+
 // Help menu listing all supported commands
 
 static void shell_help(void) {
@@ -114,6 +159,8 @@ static void shell_help(void) {
     uart_puts("  cat <file>   - Display file contents\n");
     uart_puts("  tasks        - List available tasks\n");
     uart_puts("  run <task>   - Run a demo task\n");
+    uart_puts("  load <file>  - Load and start an ELF program from the file system\n");
+    uart_puts("  quit         - Exit the shell (halts the kernel)\n");
     uart_puts("  whoami       - Show current user (user/root)\n");
     uart_puts("  su           - Become superuser (password: riscv)\n");
     uart_puts("  clear        - Clear the screen\n");
@@ -162,6 +209,10 @@ void shell_run(void) {
             shell_whoami();
         } else if (str_eq(cmd, "su")) {
             shell_su();
+        } else if (str_eq(cmd, "quit") || str_eq(cmd, "exit")) {
+            cmd_quit();
+        } else if (starts_with(cmd, "load ")) {
+            cmd_load(cmd);
         } else if (str_eq(cmd, "clear")) {
             uart_puts("\033[2J\033[H");  // ANSI escape: clear screen + move cursor home
         } else if (str_eq(cmd, "!!")) {
