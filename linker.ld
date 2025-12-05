@@ -1,9 +1,9 @@
-/* Linker script for our simple RISC-V OS running on QEMU virt */
+/* linker script for our simple RISC-V OS running on QEMU virt */
 
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
-/* Define a single RAM region starting at 0x80000000 (QEMU virt) */
+/* define a single RAM region starting at 0x80000000 (QEMU virt) */
 MEMORY {
     RAM (rwx) : ORIGIN = 0x80000000, LENGTH = 128M
 }

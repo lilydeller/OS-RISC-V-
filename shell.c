@@ -1,10 +1,4 @@
-
-// This module implements a very simple command-line shell that
-// runs on top of the UART serial interface. It allows interactive
-// input/output through QEMU’s terminal window and supports basic
-// commands for exploring the in-memory filesystem and launching
-// demo tasks.
-//
+// shell.c — simple UART-based shell for the RISC-V OS
 // ---------------------------------------------------------------
 // Built-in commands:
 //   help         - Display this help message
@@ -12,19 +6,17 @@
 //   cat <file>   - Display contents of a specific file
 //   tasks        - List registered demo tasks
 //   run <task>   - Execute a named task
-//   load <file>  - Loads a seperate file
+//   load <file>  - Loads a separate ELF file from the in-memory FS
 //   whoami       - Display current user
 //   su           - Switch to superuser (password: riscv)
 //   clear        - Clear the screen
 //   !!           - Repeat the last command
 // ---------------------------------------------------------------
-//
-// added features:
+// Extra features:
 //   • fake user system (user/root)
 //   • persistent command history
 //   • clear screen using ANSI escape codes
 //   • expanded help and comments for clarity
-
 
 #include "uart.h"
 #include "fs.h"
@@ -34,50 +26,45 @@
 
 #define CMD_BUF_SIZE 64
 
+// -----------------------------------------------------------------------------
+// Local string helpers
+// -----------------------------------------------------------------------------
 
-// Local string helper utilities
-
-
-// compare two strings for equality (returns 1 if equal, 0 otherwise)
 static int str_eq(const char *a, const char *b) {
     while (*a && *b) {
         if (*a != *b) return 0;
-        a++;
-        b++;
+        a++; b++;
     }
     return (*a == '\0' && *b == '\0');
 }
 
-// check if a string starts with a given prefix
 static int starts_with(const char *s, const char *prefix) {
     while (*prefix) {
         if (*s != *prefix) return 0;
-        s++;
-        prefix++;
+        s++; prefix++;
     }
     return 1;
 }
 
-// calculate string length
 static int str_len(const char *s) {
     int n = 0;
     while (*s++) n++;
     return n;
 }
 
-
+// -----------------------------------------------------------------------------
 // Simple fake user management system
-static const char *current_user = "user";  // default account
-static int is_root = 0;                    // 0 = normal, 1 = superuser
+// -----------------------------------------------------------------------------
 
-// prints the current user identity
+static const char *current_user = "user";
+static int is_root = 0;
+
 static void shell_whoami(void) {
     uart_puts("Current user: ");
     uart_puts(current_user);
     uart_puts(is_root ? " (root)\n" : "\n");
 }
 
-// prompts for password and enables superuser mode if correct
 static void shell_su(void) {
     char buf[CMD_BUF_SIZE];
     uart_puts("Password: ");
@@ -98,7 +85,6 @@ static void shell_su(void) {
     }
     buf[i] = '\0';
 
-    // check for the hardcoded password
     if (str_eq(buf, "riscv")) {
         is_root = 1;
         current_user = "root";
@@ -113,7 +99,10 @@ static void cmd_quit(void) {
     for (;;) { asm volatile("wfi"); }
 }
 
-// try and load program from file system and get a pcb, return 0 if fail
+// -----------------------------------------------------------------------------
+// File and program loading helpers
+// -----------------------------------------------------------------------------
+
 static int try_run_file(const char *name) {
     if (!name || name[0] == '\0') return -1;
 
@@ -145,12 +134,19 @@ static void cmd_load(const char *arg) {
 
     while (*arg == ' ' || *arg == '\t') arg++;
 
+    if (*arg == '\0') {
+        uart_puts("usage: load <file>\n");
+        return;
+    }
+
     if (try_run_file(arg) != 0) {
         uart_puts("load failed: no such ELF or loader error.\n");
     }
 }
 
-// Help menu listing all supported commands
+// -----------------------------------------------------------------------------
+// Help menu
+// -----------------------------------------------------------------------------
 
 static void shell_help(void) {
     uart_puts("Available commands:\n");
@@ -167,8 +163,10 @@ static void shell_help(void) {
     uart_puts("  !!           - Repeat the last command\n");
 }
 
-
+// -----------------------------------------------------------------------------
 // Shell main loop
+// -----------------------------------------------------------------------------
+
 void shell_run(void) {
     char cmd[CMD_BUF_SIZE];
     static char last_cmd[CMD_BUF_SIZE] = {0};
@@ -194,7 +192,9 @@ void shell_run(void) {
         }
         cmd[i] = '\0';
 
-        // handle command input
+        // ---------------------------------------------------------------------
+        // Command handling
+        // ---------------------------------------------------------------------
         if (str_eq(cmd, "help")) {
             shell_help();
         } else if (str_eq(cmd, "ls")) {
@@ -212,19 +212,19 @@ void shell_run(void) {
         } else if (str_eq(cmd, "quit") || str_eq(cmd, "exit")) {
             cmd_quit();
         } else if (starts_with(cmd, "load ")) {
-            cmd_load(cmd);
+            // ✅ FIXED: skip "load " prefix to send just the filename
+            cmd_load(cmd + 5);
         } else if (str_eq(cmd, "clear")) {
-            uart_puts("\033[2J\033[H");  // ANSI escape: clear screen + move cursor home
+            uart_puts("\033[2J\033[H");  // ANSI clear screen
         } else if (str_eq(cmd, "!!")) {
             if (str_len(last_cmd) > 0) {
                 uart_puts("Repeating last command: ");
                 uart_puts(last_cmd);
                 uart_puts("\n");
 
-                // re-run the previous command by copying it into cmd[]
                 for (int j = 0; j < CMD_BUF_SIZE; j++)
                     cmd[j] = last_cmd[j];
-                continue; // loop back with cmd now equal to last command
+                continue; // loop back with cmd equal to last command
             } else {
                 uart_puts("No previous command.\n");
             }

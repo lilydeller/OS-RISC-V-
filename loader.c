@@ -1,4 +1,6 @@
 // loader.c - copy PT_LOAD segments from embedded buffer into memory (no libc)
+// loader.c — load ELF from in-memory FS into user region (0x80200000)
+
 #include "uart.h"
 #include "fs.h"
 #include "tasks.h"
@@ -9,11 +11,9 @@
 #define ELF_MAGIC1 'E'
 #define ELF_MAGIC2 'L'
 #define ELF_MAGIC3 'F'
-
 #define ELFCLASS64 2
 #define ELFDATA2LSB 1
 #define EM_RISCV 243
-
 #define PT_LOAD 1
 
 typedef struct {
@@ -44,7 +44,6 @@ typedef struct {
     uint64_t p_align;
 } Elf64_Phdr;
 
-// match the user link and define the user region
 #ifndef USER_BASE
 #define USER_BASE 0x80200000UL
 #endif
@@ -58,33 +57,35 @@ static int address_in_user_region(uint64_t vaddr, uint64_t memsz) {
     return 1;
 }
 
-
 static void *mini_memcpy(void *dst, const void *src, size_t n) {
     uint8_t *d = (uint8_t *)dst;
     const uint8_t *s = (const uint8_t *)src;
     for (size_t i = 0; i < n; ++i) d[i] = s[i];
     return dst;
 }
+
 static void *mini_memset(void *dst, int c, size_t n) {
     uint8_t *d = (uint8_t *)dst;
     for (size_t i = 0; i < n; ++i) d[i] = (uint8_t)c;
     return dst;
 }
 
-
 int load_program_from_fs(const char *path, pcb_t *out_pcb) {
     const uint8_t *buf = NULL;
     size_t size = 0;
+
     if (fs_get_file(path, &buf, &size) != 0) {
         uart_puts("loader: file not found in FS\n");
         return -1;
     }
+
     if (size < sizeof(Elf64_Ehdr)) {
         uart_puts("loader: file too small\n");
         return -1;
     }
 
     const Elf64_Ehdr *ehdr = (const Elf64_Ehdr *)buf;
+
     if (ehdr->e_ident[0] != ELF_MAGIC0 || ehdr->e_ident[1] != ELF_MAGIC1 ||
         ehdr->e_ident[2] != ELF_MAGIC2 || ehdr->e_ident[3] != ELF_MAGIC3) {
         uart_puts("loader: not ELF\n");
@@ -96,13 +97,6 @@ int load_program_from_fs(const char *path, pcb_t *out_pcb) {
     }
     if (ehdr->e_machine != EM_RISCV) {
         uart_puts("loader: not RISC-V ELF\n");
-        return -1;
-    }
-
-
-    uint64_t ph_end = ehdr->e_phoff + (uint64_t)ehdr->e_phnum * ehdr->e_phentsize;
-    if (ph_end > size) {
-        uart_puts("loader: phdrs out of range\n");
         return -1;
     }
 
@@ -133,5 +127,6 @@ int load_program_from_fs(const char *path, pcb_t *out_pcb) {
         return -1;
     }
     out_pcb->state = TASK_RUNNABLE;
+    uart_puts("loader: program loaded successfully\n");
     return 0;
 }
